@@ -1,4 +1,4 @@
-const ZadStore = require("../models/zadStoreModel");
+// const ZadStore = require("../models/ecomercModel/zadStoreModel");
 const ZadPlatform = require("../platforms/zadPlatform");
 const dotenv = require("dotenv");
 dotenv.config();

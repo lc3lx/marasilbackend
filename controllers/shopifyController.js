@@ -1,4 +1,4 @@
-const ShopifyStore = require("../models/shopifyStoreModel");
+const ShopifyStore = require("../models/ecomercModel/shopifyStoreModel");
 const ShopifyPlatform = require("../platforms/shopifyPlatform");
 const dotenv = require("dotenv");
 dotenv.config();

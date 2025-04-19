@@ -13,10 +13,14 @@ router.get("/callback", sallaController.handleSallaCallback);
 
 // تجديد access_token
 router.post("/refresh/:storeId", sallaController.refreshSallaToken);
+
 // جلب الطلبات من متجر سلة
 router.get("/orders/:storeId", sallaController.fetchSallaOrders);
 
 // عرض الطلبات المخزنة
 router.get("/stored-orders/:storeId", sallaController.getStoredOrders);
+
+// تحديث حالة الطلب
+router.put("/update-status/:orderId", sallaController.updateOrderStatus);
 
 module.exports = router;

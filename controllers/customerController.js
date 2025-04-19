@@ -127,3 +127,8 @@ exports.updateOneBankInfo = factory.updateOne(BankInfo);
 // @route   Delete  /api/v1/Customer/deleteBankInfo
 // @access  Private/customer
 exports.deleteOneBankInfo = factory.deleteOne(BankInfo);
+
+exports.getLoggedData = asyncHandler(async (req, res, next) => {
+  req.params.id = req.customer._id;
+  next();
+});

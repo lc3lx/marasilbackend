@@ -1,4 +1,4 @@
-const SallaStore = require("../models/sallaStoreModel");
+const SallaStore = require("../models/ecomercModel/sallaStoreModel");
 const SallaPlatform = require("../platforms/sallaPlatform");
 
 const Order = require("../models/orderModel");
@@ -179,21 +179,15 @@ exports.fetchSallaOrders = async (req, res) => {
     // تخزين الطلبات في قاعدة البيانات
     await Promise.all(
       ordersData.map(async (order) => {
-        // استخراج القيم المشتركة
-        const status = order.status?.slug || order.status?.name || "unknown"; // حالة الطلب
-        const totalAmount = parseFloat(order.total?.amount) || 0; // المبلغ الإجمالي
-        const createdAt = order.date?.created_at || new Date(); // تاريخ الإنشاء
-
-        // استخراج البيانات المختلفة
-        const additionalData = {
-          reference_id: order.reference_id,
-          payment_method: order.payment_method,
-          is_pending_payment: order.is_pending_payment,
-          pending_payment_ends_at: order.pending_payment_ends_at,
-          features: order.features,
-          items: order.items,
-          customer: order.customer,
-        };
+        // استخراج القيم المطلوبة
+        const customer = order.customer;
+        const paymentMethod = order.payment_method;
+        const products = order.items.map((item) => ({
+          productName: item.name,
+          quantity: item.quantity,
+          productId: item.id,
+          weight: item.weight || 0, // إذا كان الوزن غير متوفر، نستخدم 0
+        }));
 
         const existingOrder = await Order.findOne({
           orderId: order.id,
@@ -202,13 +196,20 @@ exports.fetchSallaOrders = async (req, res) => {
 
         if (!existingOrder) {
           const newOrder = new Order({
-            storeId: store._id,
             platform: "salla",
             orderId: order.id,
-            status: status,
-            totalAmount: totalAmount,
-            createdAt: new Date(createdAt),
-            data: additionalData, // تخزين البيانات المختلفة في الحقل data
+            orderDate: new Date(order.created_at),
+            customer: {
+              name: customer.name,
+              phone: customer.phone,
+              country: customer.country,
+              city: customer.city,
+            },
+            paymentMethod: paymentMethod,
+            products: products,
+            additionalInfo: {
+              notes: "تم جلب الطلب من سلة",
+            },
           });
 
           await newOrder.save();
@@ -292,3 +293,59 @@ async function ensureValidToken(store) {
     }
   }
 }
+// تحديث حالة الطلب في سلة
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: "Status is required." });
+    }
+
+    // البحث عن الطلب في قاعدة البيانات
+    const order = await Order.findOne({ orderId });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    // البحث عن المتجر المرتبط بالطلب
+    const store = await SallaStore.findById(order.storeId);
+
+    if (!store || !store.access_token) {
+      return res
+        .status(404)
+        .json({ error: "Store not found or no access token available." });
+    }
+
+    // ضمان صلاحية access_token
+    const validAccessToken = await ensureValidToken(store);
+
+    // تحضير البيانات لتحديث حالة الطلب في سلة
+    const updateData = {
+      status: status, // الحالة الجديدة
+    };
+
+    // تحديث حالة الطلب في سلة باستخدام API
+    const updateUrl = `https://api.salla.dev/admin/v2/orders/${orderId}`;
+    const updateResponse = await axios.put(updateUrl, updateData, {
+      headers: {
+        Authorization: `Bearer ${validAccessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    // تحديث حالة الطلب في قاعدة البيانات
+    order.status = status;
+    await order.save();
+
+    res.json({
+      message: "Order status updated successfully in Salla and local database.",
+      order,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error.message);
+    res.status(500).json({ error: "Failed to update order status." });
+  }
+};

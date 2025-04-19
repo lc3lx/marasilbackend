@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router({ mergeParams: true });
 const customerController = require("../controllers/customerController");
 const auth = require("../controllers/authController");
-
 router.post(
   "/createprofile",
   auth.protect,
@@ -29,5 +28,4 @@ router.delete(
   customerController.getIdformreq,
   customerController.deleteOneProfile
 );
-
 module.exports = router;
